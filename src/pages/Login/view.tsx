@@ -1,0 +1,11 @@
+import { useState } from 'react'
+import { Activity, ArrowLeft } from 'lucide-react'
+
+export function Login({ onBack }: { onBack: () => void }) {
+  const [isSignup, setIsSignup] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
+  return <main className="login-screen">
+    <section className="login-side-art"><div className="brand"><div className="brand-mark"><Activity size={18}/></div><span className="brand-name" style={{ color: 'white' }}>Project<span>Pulse</span></span></div><div className="login-message"><span>WORK BETTER, TOGETHER</span><h1>Great work starts with a clear pulse.</h1><p>Bring your projects, people, and plans into one calm, focused workspace.</p></div><small style={{ color: '#afbadb', fontSize: 9 }}>© 2026 ProjectPulse</small></section>
+    <section className="login-main"><button className="login-back" onClick={onBack}><ArrowLeft size={13}/> Back to dashboard</button><form className="login-form" onSubmit={(event) => { event.preventDefault(); setSubmitted(true) }}><h2>{isSignup ? 'Create your account' : 'Welcome back'}</h2><p>{isSignup ? 'Start organizing your work with ProjectPulse.' : 'Sign in to pick up where your team left off.'}</p>{isSignup && <label className="login-field">Full name<input required placeholder="Alex Morgan" /></label>}<label className="login-field">Work email<input required type="email" placeholder="you@company.com" /></label><label className="login-field">Password<input required type="password" placeholder="At least 8 characters" minLength={8}/></label>{!isSignup && <div className="login-options"><label><input type="checkbox"/> Remember me</label><button type="button">Forgot password?</button></div>}<button className="primary-button login-submit" type="submit">{isSignup ? 'Create account' : 'Sign in'}</button>{submitted && <div className="form-message">Demo mode: your form is ready to connect to authentication.</div>}<div className="login-switch">{isSignup ? 'Already have an account?' : 'New to ProjectPulse?'} <button type="button" onClick={() => { setIsSignup(!isSignup); setSubmitted(false) }}>{isSignup ? 'Sign in' : 'Create an account'}</button></div></form></section>
+  </main>
+}
