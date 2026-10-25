@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import type { FormEvent } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, Edit3, X } from 'lucide-react';
-import { initialProjects } from '../../data/projectsData';
 import type { Project } from '../../data/projectsData';
+import { projectService } from '../../services/projectService';
 import { ProjectOverview } from '../../components/projects/ProjectOverview';
 import { ProjectProgress } from '../../components/projects/ProjectProgress';
 import { ProjectMembers } from '../../components/projects/ProjectMembers';
@@ -18,18 +18,28 @@ export const ProjectDetails = () => {
   const [formData, setFormData] = useState({ name: '', description: '', startDate: '', dueDate: '' });
 
   useEffect(() => {
-    const foundProject = initialProjects.find(p => p.id === projectId);
-    if (foundProject) {
-      setProject(foundProject);
-      setFormData({
-        name: foundProject.name,
-        description: foundProject.description,
-        startDate: foundProject.startDate,
-        dueDate: foundProject.dueDate
-      });
-    } else {
-      setProject(null);
+    let isMounted = true;
+    async function loadProject() {
+      if (!projectId) return;
+      const foundProject = await projectService.getProjectById(projectId);
+      if (isMounted) {
+        if (foundProject) {
+          setProject(foundProject);
+          setFormData({
+            name: foundProject.name,
+            description: foundProject.description,
+            startDate: foundProject.startDate,
+            dueDate: foundProject.dueDate
+          });
+        } else {
+          setProject(null);
+        }
+      }
     }
+    loadProject();
+    return () => {
+      isMounted = false;
+    };
   }, [projectId]);
 
   const handleEditProject = (e: FormEvent) => {

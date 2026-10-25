@@ -1,15 +1,18 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Plus, X, LayoutGrid, List } from 'lucide-react';
-import { initialProjects } from '../../data/projectsData';
+import { Search, Plus, X, LayoutGrid, List, Loader2 } from 'lucide-react';
 import type { Project, ProjectStatus } from '../../data/projectsData';
 import { ProjectCard } from '../../components/projects/ProjectCard';
 import { FormInput } from '../../components/common/FormInput';
+import { projectService } from '../../services/projectService';
 
 export const Projects = () => {
   const navigate = useNavigate();
-  const [projects, setProjects] = useState<Project[]>(initialProjects);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<ProjectStatus | 'All'>('All');
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
@@ -22,6 +25,32 @@ export const Projects = () => {
     dueDate: ''
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadProjects() {
+      setIsLoading(true);
+      try {
+        const data = await projectService.getProjects();
+        if (isMounted) {
+          setProjects(data);
+          setApiError(null);
+        }
+      } catch (err: unknown) {
+        if (isMounted) {
+          setApiError(err instanceof Error ? err.message : 'Could not load projects');
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+    loadProjects();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const filteredProjects = useMemo(() => {
     return projects.filter(p => {
@@ -44,28 +73,30 @@ export const Projects = () => {
     return Object.keys(errors).length === 0;
   };
 
-  const handleCreateProject = (e: FormEvent) => {
+  const handleCreateProject = async (e: FormEvent) => {
     e.preventDefault();
-    if (validateForm()) {
-      const newProject: Project = {
-        id: Math.random().toString(36).substr(2, 9),
+    if (!validateForm()) return;
+
+    setIsSubmitting(true);
+    setApiError(null);
+    try {
+      const created = await projectService.createProject({
         name: formData.name,
         description: formData.description,
-        status: 'Active',
-        health: 'Healthy',
-        progress: 0,
-        membersCount: 1,
-        tasksCount: 0,
         startDate: formData.startDate,
         dueDate: formData.dueDate,
-        owner: 'Current User',
-        members: [{ id: 'u1', name: 'Current User', role: 'Project Owner', initials: 'CU' }],
-        taskSummary: { total: 0, completed: 0, inProgress: 0, overdue: 0 },
-        recentTasks: []
-      };
-      setProjects([newProject, ...projects]);
+        owner: 'Bhavya Gutta',
+        status: 'Active',
+        health: 'Healthy'
+      });
+
+      setProjects(prev => [created, ...prev]);
       setIsModalOpen(false);
       setFormData({ name: '', description: '', startDate: '', dueDate: '' });
+    } catch (err: unknown) {
+      setApiError(err instanceof Error ? err.message : 'Failed to save project');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -146,7 +177,12 @@ export const Projects = () => {
       </div>
 
       {/* Main Content View */}
-      {filteredProjects.length > 0 ? (
+      {isLoading ? (
+        <div className="bg-surface border border-border rounded-lg p-12 flex flex-col items-center justify-center text-center space-y-3">
+          <Loader2 size={24} className="animate-spin text-primary" />
+          <p className="text-xs text-text-muted">Loading projects from Domain Service...</p>
+        </div>
+      ) : filteredProjects.length > 0 ? (
         viewMode === 'table' ? (
           <div className="bg-surface border border-border rounded-lg overflow-hidden">
             <table className="w-full text-left text-xs">
@@ -271,12 +307,28 @@ export const Projects = () => {
                 <FormInput label="Due Date"   type="date" value={formData.dueDate}   onChange={e => updateForm('dueDate',   e.target.value)} error={formErrors.dueDate} />
               </div>
 
+              {apiError && (
+                <div className="p-2.5 rounded bg-rose-50 border border-rose-200 text-rose-700 text-xs">
+                  {apiError}
+                </div>
+              )}
+
               <div className="pt-3 flex items-center justify-end gap-2 border-t border-border">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-3 py-1.5 text-xs text-text-secondary hover:text-text-primary">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  disabled={isSubmitting}
+                  className="px-3 py-1.5 text-xs text-text-secondary hover:text-text-primary disabled:opacity-50"
+                >
                   Cancel
                 </button>
-                <button type="submit" className="px-4 py-1.5 bg-primary text-white text-xs font-semibold rounded-md hover:bg-primary/90">
-                  Create Project
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-primary text-white text-xs font-semibold rounded-md hover:bg-primary/90 disabled:opacity-70"
+                >
+                  {isSubmitting && <Loader2 size={12} className="animate-spin" />}
+                  {isSubmitting ? 'Creating...' : 'Create Project'}
                 </button>
               </div>
             </form>

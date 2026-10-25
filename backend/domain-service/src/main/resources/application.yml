@@ -1,0 +1,22 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: domain-service
+  config:
+    import: "optional:configserver:http://localhost:8888"
+  mongodb:
+    uri: ${DOMAIN_DB_URI:${AUTH_DB_URI}}
+    database: domain_db
+  data:
+    mongodb:
+      uri: ${DOMAIN_DB_URI:${AUTH_DB_URI}}
+      database: domain_db
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true

@@ -1,0 +1,4 @@
+# Default configurations served by Config Server to client microservices
+app:
+  platform:
+    name: ProjectPulse

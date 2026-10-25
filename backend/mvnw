@@ -1,0 +1,47 @@
+#!/bin/sh
+# ----------------------------------------------------------------------------
+# Apache Maven Wrapper startup shell script
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.
+#
+# ProjectPulse — do not modify this file manually.
+# ----------------------------------------------------------------------------
+
+if [ -z "$BASH_VERSION" -a -z "$ZSH_VERSION" ]; then
+    set -o posix
+fi
+
+if [ -f /usr/lib/jvm/default-java/bin/java ]; then
+    JAVA_HOME="/usr/lib/jvm/default-java"
+fi
+
+BASE_DIR="$(cd "$(dirname "$0")" && pwd)"
+MAVEN_WRAPPER_PROPERTIES="$BASE_DIR/.mvn/wrapper/maven-wrapper.properties"
+WRAPPER_JAR="$BASE_DIR/.mvn/wrapper/maven-wrapper.jar"
+
+# Read properties
+while IFS='=' read -r key value; do
+    case "$key" in
+        distributionUrl) DISTRIBUTION_URL="$value" ;;
+        wrapperUrl)      WRAPPER_URL="$value" ;;
+    esac
+done < "$MAVEN_WRAPPER_PROPERTIES"
+
+# Download wrapper jar if missing
+if [ ! -f "$WRAPPER_JAR" ]; then
+    echo "Downloading Maven Wrapper JAR..."
+    if command -v curl >/dev/null 2>&1; then
+        curl -fsSL -o "$WRAPPER_JAR" "$WRAPPER_URL"
+    elif command -v wget >/dev/null 2>&1; then
+        wget -q -O "$WRAPPER_JAR" "$WRAPPER_URL"
+    else
+        echo "ERROR: curl or wget required to download Maven Wrapper." >&2
+        exit 1
+    fi
+fi
+
+exec java $MAVEN_WRAPPER_JAVA_OPTS \
+    -classpath "$WRAPPER_JAR" \
+    "-Dmaven.multiModuleProjectDirectory=$BASE_DIR" \
+    "-Dmaven.wrapper.distribution.url=$DISTRIBUTION_URL" \
+    org.apache.maven.wrapper.MavenWrapperMain "$@"

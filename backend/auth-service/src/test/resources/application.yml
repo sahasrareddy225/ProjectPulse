@@ -1,0 +1,13 @@
+# Test configuration - disable live Mongo initialization during unit/slice tests unless testing Atlas explicitly
+spring:
+  application:
+    name: auth-service
+  config:
+    import: "optional:configserver:http://localhost:8888"
+  data:
+    mongodb:
+      uri: mongodb://test-disabled:27017/auth_db
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.mongo.MongoDataAutoConfiguration

@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+             https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- ── Spring Boot parent (provides dependency + plugin management) ──────── -->
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>4.1.2</version>
+        <relativePath/>
+    </parent>
+
+    <!-- ── Project identity ───────────────────────────────────────────────────── -->
+    <groupId>com.projectpulse</groupId>
+    <artifactId>projectpulse-backend</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <packaging>pom</packaging>
+    <name>ProjectPulse Backend</name>
+    <description>ProjectPulse microservices parent project</description>
+
+    <!-- ── Modules (infrastructure first, then business services) ─────────────── -->
+    <modules>
+        <!-- Infrastructure -->
+        <module>config-server</module>
+        <module>discovery-server</module>
+        <module>api-gateway</module>
+        <!-- Business services -->
+        <module>auth-service</module>
+        <module>domain-service</module>
+        <module>workflow-service</module>
+        <module>notification-service</module>
+        <module>analytics-service</module>
+        <module>ai-assistant-service</module>
+    </modules>
+
+    <!-- ── Version properties ─────────────────────────────────────────────────── -->
+    <properties>
+        <java.version>24</java.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <spring-cloud.version>2025.1.4</spring-cloud.version>
+    </properties>
+
+    <!-- ── Dependency management (BOMs only — no direct dependencies here) ────── -->
+    <dependencyManagement>
+        <dependencies>
+            <!-- Spring Cloud BOM — manages all Spring Cloud component versions -->
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>${spring-cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <!-- ── Build plugin management ────────────────────────────────────────────── -->
+    <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <configuration>
+                        <release>${java.version}</release>
+                        <parameters>true</parameters>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-maven-plugin</artifactId>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
+
+</project>

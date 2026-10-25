@@ -5,6 +5,9 @@ frontend/node_modules/
 # Build output
 dist/
 frontend/dist/
+target/
+**/target/
+*.log
 
 # Environment files and secrets
 .env
