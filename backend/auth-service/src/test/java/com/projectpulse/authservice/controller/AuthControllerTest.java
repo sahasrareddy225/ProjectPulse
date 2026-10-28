@@ -1,8 +1,11 @@
 package com.projectpulse.authservice.controller;
 
+import com.projectpulse.authservice.dto.LoginRequest;
+import com.projectpulse.authservice.dto.LoginResponse;
 import com.projectpulse.authservice.dto.RegisterRequest;
 import com.projectpulse.authservice.dto.UserResponse;
 import com.projectpulse.authservice.exception.GlobalExceptionHandler;
+import com.projectpulse.authservice.exception.InvalidCredentialsException;
 import com.projectpulse.authservice.exception.UserAlreadyExistsException;
 import com.projectpulse.authservice.service.AuthService;
 import org.junit.jupiter.api.BeforeEach;
@@ -114,5 +117,72 @@ class AuthControllerTest {
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.status").value(409))
                 .andExpect(jsonPath("$.message").value("A user with email 'existing@example.com' already exists"));
+    }
+
+    @Test
+    @DisplayName("POST /api/auth/login - 200 OK on valid credentials")
+    void shouldLoginSuccessfully() throws Exception {
+        UserResponse user = new UserResponse("user-1", "Bob", "bob@example.com", "MEMBER", Instant.now());
+        LoginResponse loginResponse = new LoginResponse("sample.jwt.token", 3600L, user);
+        when(authService.login(any(LoginRequest.class))).thenReturn(loginResponse);
+
+        String json = """
+                {
+                    "email": "bob@example.com",
+                    "password": "ValidPassword123"
+                }
+                """;
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token").value("sample.jwt.token"))
+                .andExpect(jsonPath("$.tokenType").value("Bearer"))
+                .andExpect(jsonPath("$.expiresIn").value(3600))
+                .andExpect(jsonPath("$.user.email").value("bob@example.com"))
+                .andExpect(jsonPath("$.user.role").value("MEMBER"));
+    }
+
+    @Test
+    @DisplayName("POST /api/auth/login - 401 Unauthorized on invalid credentials")
+    void shouldReturnUnauthorizedWhenCredentialsInvalid() throws Exception {
+        when(authService.login(any(LoginRequest.class)))
+                .thenThrow(new InvalidCredentialsException("Invalid email or password"));
+
+        String json = """
+                {
+                    "email": "wrong@example.com",
+                    "password": "WrongPassword123"
+                }
+                """;
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.status").value(401))
+                .andExpect(jsonPath("$.message").value("Invalid email or password"));
+    }
+
+    @Test
+    @DisplayName("GET /api/auth/me - 401 Unauthorized when Authorization header is missing")
+    void shouldReturnUnauthorizedWhenTokenMissingOnMe() throws Exception {
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/auth/me"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("GET /api/auth/me - 200 OK when valid Bearer token provided")
+    void shouldReturnUserWhenTokenValidOnMe() throws Exception {
+        UserResponse user = new UserResponse("user-1", "Bob", "bob@example.com", "MEMBER", Instant.now());
+        when(authService.validateAndGetUser("valid.token")).thenReturn(user);
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/auth/me")
+                        .header("Authorization", "Bearer valid.token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value("user-1"))
+                .andExpect(jsonPath("$.email").value("bob@example.com"))
+                .andExpect(jsonPath("$.role").value("MEMBER"));
     }
 }

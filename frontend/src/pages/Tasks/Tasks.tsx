@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, AlertCircle, X, Loader2 } from 'lucide-react';
 import type { Task } from '../../types/task';
 import { isTaskOverdue } from '../../types/task';
 import { TaskSummary } from '../../components/tasks/TaskSummary';
@@ -28,12 +28,26 @@ const DEFAULT_FILTERS: TaskFiltersState = {
 interface TasksProps {
   tasks: Task[];
   onTasksChange: (tasks: Task[]) => void;
+  onCreateTask?: (data: Omit<Task, 'id' | 'createdAt'>) => Promise<void>;
+  onDeleteTask?: (id: string) => Promise<void>;
+  isLoading?: boolean;
+  error?: string | null;
+  onClearError?: () => void;
 }
 
-export const Tasks = ({ tasks, onTasksChange }: TasksProps) => {
+export const Tasks = ({
+  tasks,
+  onTasksChange,
+  onCreateTask,
+  onDeleteTask,
+  isLoading = false,
+  error = null,
+  onClearError,
+}: TasksProps) => {
   const [filters, setFilters] = useState<TaskFiltersState>(DEFAULT_FILTERS);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const updateFilters = (patch: Partial<TaskFiltersState>) =>
     setFilters(prev => ({ ...prev, ...patch }));
@@ -75,14 +89,23 @@ export const Tasks = ({ tasks, onTasksChange }: TasksProps) => {
     return result;
   }, [tasks, filters]);
 
-  const handleCreate = (data: Omit<Task, 'id' | 'createdAt'>) => {
-    const newTask: Task = {
-      ...data,
-      id: `task-${Date.now()}`,
-      createdAt: new Date().toISOString(),
-    };
-    onTasksChange([newTask, ...tasks]);
-    setIsCreating(false);
+  const handleCreate = async (data: Omit<Task, 'id' | 'createdAt'>) => {
+    setActionError(null);
+    try {
+      if (onCreateTask) {
+        await onCreateTask(data);
+      } else {
+        const newTask: Task = {
+          ...data,
+          id: `task-${Date.now()}`,
+          createdAt: new Date().toISOString(),
+        };
+        onTasksChange([newTask, ...tasks]);
+      }
+      setIsCreating(false);
+    } catch (err: any) {
+      setActionError(err.message || 'Failed to create task');
+    }
   };
 
   const handleEdit = (data: Omit<Task, 'id' | 'createdAt'>) => {
@@ -90,6 +113,8 @@ export const Tasks = ({ tasks, onTasksChange }: TasksProps) => {
     onTasksChange(tasks.map(t => t.id === editingTask.id ? { ...t, ...data } : t));
     setEditingTask(null);
   };
+
+  const activeError = actionError || error;
 
   return (
     <div className="space-y-6 pb-8">
@@ -102,13 +127,28 @@ export const Tasks = ({ tasks, onTasksChange }: TasksProps) => {
           </p>
         </div>
         <button
-          onClick={() => setIsCreating(true)}
+          onClick={() => { setActionError(null); setIsCreating(true); }}
           className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-primary text-white font-medium text-xs rounded-md hover:bg-primary/90 transition-colors shadow-none"
         >
           <Plus size={14} />
           Create Task
         </button>
       </div>
+
+      {activeError && (
+        <div className="flex items-center justify-between p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">
+          <div className="flex items-center gap-2">
+            <AlertCircle size={15} className="flex-shrink-0 text-red-600" />
+            <span>{activeError}</span>
+          </div>
+          <button
+            onClick={() => { setActionError(null); onClearError?.(); }}
+            className="text-red-500 hover:text-red-700"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
 
       <TaskSummary tasks={tasks} />
       <TaskFilters filters={filters} onChange={updateFilters} />
@@ -118,17 +158,34 @@ export const Tasks = ({ tasks, onTasksChange }: TasksProps) => {
           Showing <strong className="text-text-primary font-mono">{filteredTasks.length}</strong> of{' '}
           <strong className="text-text-primary font-mono">{tasks.length}</strong> tasks
         </span>
+        {isLoading && (
+          <span className="flex items-center gap-1.5 text-text-muted">
+            <Loader2 size={12} className="animate-spin" /> Synchronizing...
+          </span>
+        )}
       </div>
 
-      <TaskTable tasks={filteredTasks} onEdit={task => setEditingTask(task)} />
+      <TaskTable
+        tasks={filteredTasks}
+        onEdit={task => setEditingTask(task)}
+        onDelete={onDeleteTask}
+      />
 
       {isCreating && (
-        <TaskFormModal mode="create" onSave={handleCreate} onClose={() => setIsCreating(false)} />
+        <TaskFormModal
+          mode="create"
+          onSave={handleCreate}
+          onClose={() => { setIsCreating(false); setActionError(null); }}
+        />
       )}
       {editingTask && (
-        <TaskFormModal mode="edit" task={editingTask} onSave={handleEdit} onClose={() => setEditingTask(null)} />
+        <TaskFormModal
+          mode="edit"
+          task={editingTask}
+          onSave={handleEdit}
+          onClose={() => setEditingTask(null)}
+        />
       )}
     </div>
   );
 };
-

@@ -52,7 +52,7 @@ public class MongoValidationConfig {
 
     /**
      * Extracts only the cluster hostname from a MongoDB URI — no credentials exposed.
-     * Example: "mongodb+srv://user:pass@cluster.example.net/db?retryWrites=true" → "cluster.example.net"
+     * Example input with userinfo returns "cluster.example.net".
      */
     static String extractSafeHost(String uri) {
         if (uri == null || uri.isBlank()) return "<empty>";

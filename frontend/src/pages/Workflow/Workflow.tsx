@@ -1,19 +1,41 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { initialTasks } from '../../data/tasksData';
 import { initialProjects } from '../../data/projectsData';
 import type { Task, TaskStatus, TaskPriority } from '../../types/task';
+import type { Project } from '../../data/projectsData';
 import { WorkflowSummary } from '../../components/workflow/WorkflowSummary';
 import { WorkflowStatus } from '../../components/workflow/WorkflowStatus';
 import { DependencyView } from '../../components/workflow/DependencyView';
 import { BlockedTasks } from '../../components/workflow/BlockedTasks';
 import { WorkflowAttention } from '../../components/workflow/WorkflowAttention';
-import { Filter } from 'lucide-react';
+import { Filter, Loader2 } from 'lucide-react';
+import { taskService } from '../../services/taskService';
+import { projectService } from '../../services/projectService';
 
 export const Workflow = () => {
-  const [allTasks] = useState<Task[]>(initialTasks);
+  const [allTasks, setAllTasks] = useState<Task[]>(initialTasks);
+  const [projects, setProjects] = useState<Project[]>(initialProjects);
+  const [isLoading, setIsLoading] = useState(false);
   const [projectFilter, setProjectFilter] = useState<string>('ALL');
   const [statusFilter, setStatusFilter] = useState<TaskStatus | 'ALL'>('ALL');
   const [priorityFilter, setPriorityFilter] = useState<TaskPriority | 'ALL'>('ALL');
+
+  useEffect(() => {
+    let mounted = true;
+    setIsLoading(true);
+    Promise.all([taskService.getTasks(), projectService.getProjects()])
+      .then(([fetchedTasks, fetchedProjects]) => {
+        if (mounted) {
+          if (fetchedTasks && fetchedTasks.length > 0) setAllTasks(fetchedTasks);
+          if (fetchedProjects && fetchedProjects.length > 0) setProjects(fetchedProjects);
+          setIsLoading(false);
+        }
+      })
+      .catch(() => {
+        if (mounted) setIsLoading(false);
+      });
+    return () => { mounted = false; };
+  }, []);
 
   const scopedTasks = useMemo(() => {
     return allTasks.filter(task => {
@@ -37,6 +59,11 @@ export const Workflow = () => {
 
         {/* Filters */}
         <div className="flex flex-wrap items-center gap-2 text-xs">
+          {isLoading && (
+            <span className="flex items-center gap-1 text-xs text-text-muted mr-1">
+              <Loader2 size={13} className="animate-spin text-primary" />
+            </span>
+          )}
           <div className="flex items-center gap-1.5 text-text-muted font-medium">
             <Filter size={13} />
             Scope:
@@ -46,8 +73,8 @@ export const Workflow = () => {
             onChange={e => setProjectFilter(e.target.value)}
             className="py-1.5 pl-2.5 pr-7 border border-border rounded-md bg-surface text-xs font-medium text-text-primary focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
           >
-            <option value="ALL">All Projects</option>
-            {initialProjects.map(p => (
+            <option value="ALL">All Projects ({projects.length})</option>
+            {projects.map(p => (
               <option key={p.id} value={p.id}>{p.name}</option>
             ))}
           </select>

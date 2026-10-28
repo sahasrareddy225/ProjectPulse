@@ -6,9 +6,11 @@ import type { Project, ProjectStatus } from '../../data/projectsData';
 import { ProjectCard } from '../../components/projects/ProjectCard';
 import { FormInput } from '../../components/common/FormInput';
 import { projectService } from '../../services/projectService';
+import { useAuthStore } from '../../store/authStore';
 
 export const Projects = () => {
   const navigate = useNavigate();
+  const { user } = useAuthStore();
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -17,6 +19,8 @@ export const Projects = () => {
   const [statusFilter, setStatusFilter] = useState<ProjectStatus | 'All'>('All');
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const canCreateProject = user?.role === 'ADMIN' || user?.role === 'PROJECT_MANAGER';
 
   const [formData, setFormData] = useState({
     name: '',
@@ -85,7 +89,7 @@ export const Projects = () => {
         description: formData.description,
         startDate: formData.startDate,
         dueDate: formData.dueDate,
-        owner: 'Bhavya Gutta',
+        owner: user?.name || user?.email || 'Owner',
         status: 'Active',
         health: 'Healthy'
       });
@@ -93,6 +97,13 @@ export const Projects = () => {
       setProjects(prev => [created, ...prev]);
       setIsModalOpen(false);
       setFormData({ name: '', description: '', startDate: '', dueDate: '' });
+
+      // Trigger immediate notification refresh
+      window.dispatchEvent(new CustomEvent('projectpulse:notification-refresh'));
+      // Follow-up refresh to ensure Kafka consumption to Atlas is reflected
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('projectpulse:notification-refresh'));
+      }, 1000);
     } catch (err: unknown) {
       setApiError(err instanceof Error ? err.message : 'Failed to save project');
     } finally {
@@ -117,14 +128,25 @@ export const Projects = () => {
             Operational workspace for active initiatives, milestones, and team members.
           </p>
         </div>
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-primary text-white font-medium text-xs rounded-md hover:bg-primary/90 transition-colors shadow-none"
-        >
-          <Plus size={14} />
-          New Project
-        </button>
+        {canCreateProject && (
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-primary text-white font-medium text-xs rounded-md hover:bg-primary/90 transition-colors shadow-none"
+          >
+            <Plus size={14} />
+            New Project
+          </button>
+        )}
       </div>
+
+      {apiError && (
+        <div className="p-3 rounded-md bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center justify-between">
+          <span>{apiError}</span>
+          <button onClick={() => setApiError(null)} className="text-rose-500 hover:text-rose-700 text-xs font-semibold ml-2">
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {/* Controls Bar */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3">

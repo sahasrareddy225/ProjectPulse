@@ -12,45 +12,64 @@ import org.springframework.web.bind.annotation.*;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
+import com.projectpulse.domainservice.security.AuthenticatedUser;
+import com.projectpulse.domainservice.security.TokenValidator;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.Map;
 import java.util.Set;
 
 @RestController
 @RequestMapping("/api/projects")
-@CrossOrigin(origins = "*")
+@CrossOrigin(origins = "http://localhost:5173")
 public class ProjectController {
 
     private final ProjectService projectService;
+    private final TokenValidator tokenValidator;
     private final MongoTemplate mongoTemplate;
 
     public ProjectController(
             ProjectService projectService,
+            TokenValidator tokenValidator,
             @org.springframework.beans.factory.annotation.Autowired(required = false) MongoTemplate mongoTemplate) {
         this.projectService = projectService;
+        this.tokenValidator = tokenValidator;
         this.mongoTemplate = mongoTemplate;
     }
 
     @GetMapping
-    public ResponseEntity<List<Project>> listProjects() {
-        return ResponseEntity.ok(projectService.getAllProjects());
+    public ResponseEntity<List<Project>> listProjects(HttpServletRequest request) {
+        AuthenticatedUser user = tokenValidator.authenticate(request);
+        return ResponseEntity.ok(projectService.getProjectsForUser(user));
     }
 
     @PostMapping
-    public ResponseEntity<Project> createProject(@Valid @RequestBody CreateProjectRequest request) {
-        Project created = projectService.createProject(request);
+    public ResponseEntity<Project> createProject(
+            @Valid @RequestBody CreateProjectRequest request,
+            HttpServletRequest httpRequest) {
+        AuthenticatedUser user = tokenValidator.authenticate(httpRequest);
+        Project created = projectService.createProject(request, user);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Project> getProject(@PathVariable String id) {
-        return projectService.getProjectById(id)
-            .map(ResponseEntity::ok)
-            .orElseGet(() -> ResponseEntity.notFound().build());
+    public ResponseEntity<Project> getProject(
+            @PathVariable String id,
+            HttpServletRequest httpRequest) {
+        AuthenticatedUser user = tokenValidator.authenticate(httpRequest);
+        try {
+            Project project = projectService.getProjectByIdForUser(id, user);
+            return ResponseEntity.ok(project);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteProject(@PathVariable String id) {
-        boolean deleted = projectService.deleteProject(id);
+    public ResponseEntity<Void> deleteProject(
+            @PathVariable String id,
+            HttpServletRequest httpRequest) {
+        AuthenticatedUser user = tokenValidator.authenticate(httpRequest);
+        boolean deleted = projectService.deleteProject(id, user);
         if (deleted) {
             return ResponseEntity.noContent().build();
         }

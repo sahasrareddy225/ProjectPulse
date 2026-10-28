@@ -1,4 +1,4 @@
-import { Edit3, ListChecks } from 'lucide-react';
+import { Edit3, ListChecks, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { Task } from '../../types/task';
 import { isTaskOverdue } from '../../types/task';
@@ -8,9 +8,10 @@ import { initialProjects } from '../../data/projectsData';
 interface TaskTableProps {
   tasks: Task[];
   onEdit: (task: Task) => void;
+  onDelete?: (id: string) => void;
 }
 
-export const TaskTable = ({ tasks, onEdit }: TaskTableProps) => {
+export const TaskTable = ({ tasks, onEdit, onDelete }: TaskTableProps) => {
   const navigate = useNavigate();
 
   const getProjectName = (projectId: string) =>
@@ -94,13 +95,28 @@ export const TaskTable = ({ tasks, onEdit }: TaskTableProps) => {
                     </span>
                   </td>
                   <td className="py-2.5 px-3 text-right whitespace-nowrap">
-                    <button
-                      onClick={() => onEdit(task)}
-                      className="p-1 rounded text-text-muted hover:text-text-primary transition-colors opacity-0 group-hover:opacity-100"
-                      title="Edit task"
-                    >
-                      <Edit3 size={13} />
-                    </button>
+                    <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => onEdit(task)}
+                        className="p-1 rounded text-text-muted hover:text-text-primary transition-colors"
+                        title="Edit task"
+                      >
+                        <Edit3 size={13} />
+                      </button>
+                      {onDelete && (
+                        <button
+                          onClick={() => {
+                            if (window.confirm(`Delete task "${task.title}"?`)) {
+                              onDelete(task.id);
+                            }
+                          }}
+                          className="p-1 rounded text-text-muted hover:text-red-500 transition-colors"
+                          title="Delete task"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               );

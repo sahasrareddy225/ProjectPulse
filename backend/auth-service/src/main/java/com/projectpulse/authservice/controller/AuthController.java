@@ -1,5 +1,7 @@
 package com.projectpulse.authservice.controller;
 
+import com.projectpulse.authservice.dto.LoginRequest;
+import com.projectpulse.authservice.dto.LoginResponse;
 import com.projectpulse.authservice.dto.RegisterRequest;
 import com.projectpulse.authservice.dto.UserResponse;
 import com.projectpulse.authservice.service.AuthService;
@@ -11,6 +13,7 @@ import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -36,6 +39,29 @@ public class AuthController {
     public ResponseEntity<UserResponse> register(@Valid @RequestBody RegisterRequest request) {
         UserResponse response = authService.register(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
+        LoginResponse response = authService.login(request);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Map<String, String>> logout(
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        return ResponseEntity.ok(Map.of("message", "Logged out successfully"));
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<UserResponse> me(
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        String token = authHeader.substring(7);
+        UserResponse user = authService.validateAndGetUser(token);
+        return ResponseEntity.ok(user);
     }
 
     /**

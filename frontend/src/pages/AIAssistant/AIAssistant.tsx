@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Sparkles, Trash2, Filter } from 'lucide-react';
 import type { ChatMessage as ChatMessageType } from '../../types/ai';
-import { getMockResponse } from '../../data/aiMockResponses';
+import { aiService } from '../../services/aiService';
 import { ChatMessage } from '../../components/ai/ChatMessage';
 import { ChatInput } from '../../components/ai/ChatInput';
 import { StarterQuestions } from '../../components/ai/StarterQuestions';
@@ -36,13 +36,29 @@ export const AIAssistant = () => {
     setIsLoading(true);
 
     try {
-      const responseMsg = await getMockResponse(content);
+      const aiRes = await aiService.queryAi(content, projectContext);
+
+      const evidence = (aiRes.sources || []).map((s, idx) => ({
+        id: `ev-${idx}-${s.id}`,
+        type: (s.type === 'task' ? 'task' : 'project') as 'task' | 'project',
+        title: s.name,
+        snippet: s.detail,
+      }));
+
+      const responseMsg: ChatMessageType = {
+        id: `msg-ai-${Date.now()}`,
+        role: 'assistant',
+        content: aiRes.answer,
+        timestamp: aiRes.timestamp || new Date().toISOString(),
+        evidence,
+      };
+
       setMessages(prev => [...prev, responseMsg]);
-    } catch (error) {
+    } catch (error: any) {
       const errorMsg: ChatMessageType = {
         id: `msg-err-${Date.now()}`,
         role: 'assistant',
-        content: "Unable to connect to the AI Assistant service. Please try again later.",
+        content: error?.message || "Unable to connect to the AI Assistant service. Please try again later.",
         timestamp: new Date().toISOString(),
         isError: true,
       };

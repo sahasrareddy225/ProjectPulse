@@ -10,15 +10,21 @@ public class UserResponse {
     private String id;
     private String name;
     private String email;
+    private String role;
     private Instant createdAt;
 
     public UserResponse() {
     }
 
     public UserResponse(String id, String name, String email, Instant createdAt) {
+        this(id, name, email, "MEMBER", createdAt);
+    }
+
+    public UserResponse(String id, String name, String email, String role, Instant createdAt) {
         this.id = id;
         this.name = name;
         this.email = email;
+        this.role = role != null && !role.isBlank() ? role : "MEMBER";
         this.createdAt = createdAt;
     }
 
@@ -44,6 +50,14 @@ public class UserResponse {
 
     public void setEmail(String email) {
         this.email = email;
+    }
+
+    public String getRole() {
+        return role != null && !role.isBlank() ? role : "MEMBER";
+    }
+
+    public void setRole(String role) {
+        this.role = role != null && !role.isBlank() ? role : "MEMBER";
     }
 
     public Instant getCreatedAt() {

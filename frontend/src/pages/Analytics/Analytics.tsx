@@ -1,6 +1,8 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { initialTasks } from '../../data/tasksData';
 import { initialProjects } from '../../data/projectsData';
+import type { Task } from '../../types/task';
+import type { Project } from '../../data/projectsData';
 import { calculateCompletionMetrics, calculateProjectHealth, calculateOverdueMetrics } from '../../utils/analytics';
 import { CompletionOverview } from '../../components/analytics/CompletionOverview';
 import { ProjectHealth } from '../../components/analytics/ProjectHealth';
@@ -10,15 +12,40 @@ import { DependencyRisk } from '../../components/analytics/DependencyRisk';
 import { WorkloadAnalysis } from '../../components/analytics/WorkloadAnalysis';
 import { CompletionTrendChart } from '../../components/analytics/CompletionTrendChart';
 import { ProjectComparison } from '../../components/analytics/ProjectComparison';
-import { Filter } from 'lucide-react';
+import { Filter, Loader2, RefreshCw } from 'lucide-react';
+import { taskService } from '../../services/taskService';
+import { projectService } from '../../services/projectService';
 
 export const Analytics = () => {
   const [projectFilter, setProjectFilter] = useState<string>('ALL');
+  const [tasks, setTasks] = useState<Task[]>(initialTasks);
+  const [projects, setProjects] = useState<Project[]>(initialProjects);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const loadData = async () => {
+    setIsLoading(true);
+    try {
+      const [fetchedTasks, fetchedProjects] = await Promise.all([
+        taskService.getTasks(),
+        projectService.getProjects(),
+      ]);
+      if (fetchedTasks && fetchedTasks.length > 0) setTasks(fetchedTasks);
+      if (fetchedProjects && fetchedProjects.length > 0) setProjects(fetchedProjects);
+    } catch (err) {
+      console.warn('[Analytics] Failed to fetch live data:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
 
   const scopedTasks = useMemo(() => {
-    if (projectFilter === 'ALL') return initialTasks;
-    return initialTasks.filter(task => task.projectId === projectFilter);
-  }, [projectFilter]);
+    if (projectFilter === 'ALL') return tasks;
+    return tasks.filter(task => task.projectId === projectFilter);
+  }, [tasks, projectFilter]);
 
   const topMetrics = useMemo(() => {
     const completion = calculateCompletionMetrics(scopedTasks);
@@ -45,6 +72,18 @@ export const Analytics = () => {
 
         {/* Scope Selector */}
         <div className="flex items-center gap-2">
+          {isLoading && (
+            <span className="flex items-center gap-1.5 text-xs text-text-muted mr-1">
+              <Loader2 size={12} className="animate-spin text-primary" />
+            </span>
+          )}
+          <button
+            onClick={loadData}
+            className="p-1.5 border border-border rounded-md text-text-secondary hover:text-text-primary hover:bg-neutral-50 transition-colors"
+            title="Refresh analytics data"
+          >
+            <RefreshCw size={13} className={isLoading ? 'animate-spin' : ''} />
+          </button>
           <div className="flex items-center gap-1.5 text-xs text-text-muted">
             <Filter size={13} />
             <span className="font-medium">Project:</span>
@@ -54,8 +93,8 @@ export const Analytics = () => {
             onChange={e => setProjectFilter(e.target.value)}
             className="py-1.5 px-3 border border-border rounded-md bg-surface text-xs font-semibold text-text-primary focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-colors cursor-pointer"
           >
-            <option value="ALL">All Projects ({initialProjects.length})</option>
-            {initialProjects.map(p => (
+            <option value="ALL">All Projects ({projects.length})</option>
+            {projects.map(p => (
               <option key={p.id} value={p.id}>{p.name}</option>
             ))}
           </select>
@@ -107,17 +146,16 @@ export const Analytics = () => {
         <div className="lg:col-span-1 space-y-4">
           <OverdueAnalysis tasks={scopedTasks} />
           <PriorityDistribution tasks={scopedTasks} />
-          <DependencyRisk tasks={scopedTasks} allTasks={initialTasks} />
+          <DependencyRisk tasks={scopedTasks} allTasks={tasks} />
         </div>
       </div>
 
       {/* Project Comparison Table */}
       {projectFilter === 'ALL' && (
         <div className="pt-2">
-          <ProjectComparison allTasks={initialTasks} />
+          <ProjectComparison allTasks={tasks} />
         </div>
       )}
     </div>
   );
 };
-

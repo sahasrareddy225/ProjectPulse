@@ -1,20 +1,32 @@
 import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useOutletContext } from 'react-router-dom';
 import type { Notification } from '../../types/notification';
 import { NotificationIcon } from '../../components/notifications/NotificationIcon';
 import { relativeTime } from '../../utils/time';
-import { CheckCheck } from 'lucide-react';
+import { CheckCheck, Loader2, AlertCircle } from 'lucide-react';
 
 type FilterTab = 'ALL' | 'UNREAD' | 'TASKS' | 'PROJECTS' | 'WORKFLOW';
 
 interface NotificationsPageProps {
-  notifications: Notification[];
-  onMarkRead: (id: string) => void;
-  onMarkAllRead: () => void;
+  notifications?: Notification[];
+  onMarkRead?: (id: string) => void;
+  onMarkAllRead?: () => void;
+  isLoading?: boolean;
+  error?: string | null;
+  onRefresh?: () => void;
+}
+
+interface OutletContextType {
+  notifications?: Notification[];
+  onMarkRead?: (id: string) => void;
+  onMarkAllRead?: () => void;
+  isLoading?: boolean;
+  error?: string | null;
+  onRefresh?: () => void;
 }
 
 const TASK_TYPES = new Set(['TASK_ASSIGNED', 'TASK_DUE_SOON', 'TASK_OVERDUE', 'TASK_COMPLETED']);
-const PROJECT_TYPES = new Set(['PROJECT_STATUS_CHANGED', 'PROJECT_HEALTH_CHANGED']);
+const PROJECT_TYPES = new Set(['PROJECT_STATUS_CHANGED', 'PROJECT_HEALTH_CHANGED', 'PROJECT_CREATED']);
 const WORKFLOW_TYPES = new Set(['DEPENDENCY_BLOCKED']);
 
 const TABS: { key: FilterTab; label: string }[] = [
@@ -25,7 +37,16 @@ const TABS: { key: FilterTab; label: string }[] = [
   { key: 'WORKFLOW', label: 'Workflow' },
 ];
 
-export const Notifications = ({ notifications, onMarkRead, onMarkAllRead }: NotificationsPageProps) => {
+export const Notifications = (props: NotificationsPageProps) => {
+  const outlet = useOutletContext<OutletContextType | null>();
+
+  const notifications = props.notifications ?? outlet?.notifications ?? [];
+  const onMarkRead = props.onMarkRead ?? outlet?.onMarkRead ?? (() => {});
+  const onMarkAllRead = props.onMarkAllRead ?? outlet?.onMarkAllRead ?? (() => {});
+  const isLoading = props.isLoading ?? outlet?.isLoading ?? false;
+  const error = props.error ?? outlet?.error ?? null;
+  const onRefresh = props.onRefresh ?? outlet?.onRefresh;
+
   const [activeTab, setActiveTab] = useState<FilterTab>('ALL');
   const navigate = useNavigate();
 
@@ -74,6 +95,24 @@ export const Notifications = ({ notifications, onMarkRead, onMarkAllRead }: Noti
         )}
       </div>
 
+      {/* Error state */}
+      {error && (
+        <div className="bg-red-500/10 border border-red-500/20 text-red-600 rounded-lg p-4 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-xs">
+            <AlertCircle size={16} />
+            <span>{error}</span>
+          </div>
+          {onRefresh && (
+            <button
+              onClick={onRefresh}
+              className="text-xs font-semibold underline hover:no-underline"
+            >
+              Retry
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Filter tabs */}
       <div className="flex items-center gap-1 border border-border rounded-md p-0.5 bg-neutral-100/60 text-xs w-fit">
         {TABS.map(tab => (
@@ -96,14 +135,22 @@ export const Notifications = ({ notifications, onMarkRead, onMarkAllRead }: Noti
         ))}
       </div>
 
-      {/* List */}
-      {filtered.length === 0 ? (
+      {/* Loading state */}
+      {isLoading && notifications.length === 0 ? (
+        <div className="bg-surface border border-border rounded-lg p-12 flex flex-col items-center justify-center text-center">
+          <Loader2 size={24} className="animate-spin text-primary mb-3" />
+          <p className="text-sm font-medium text-text-primary">Loading notifications...</p>
+          <p className="text-xs text-text-muted mt-0.5">Fetching latest activity alerts from Notification Service.</p>
+        </div>
+      ) : filtered.length === 0 ? (
+        /* Empty state */
         <div className="bg-surface border border-border rounded-lg p-10 flex flex-col items-center justify-center text-center">
           <CheckCheck size={20} className="text-emerald-500 mb-2" />
           <p className="text-sm font-semibold text-text-primary">{getEmptyMessage()}</p>
           <p className="text-xs text-text-muted mt-0.5">No notifications require your attention.</p>
         </div>
       ) : (
+        /* List */
         <div className="bg-surface border border-border rounded-lg divide-y divide-border overflow-hidden">
           {filtered.map(notif => (
             <div
@@ -141,4 +188,3 @@ export const Notifications = ({ notifications, onMarkRead, onMarkAllRead }: Noti
     </div>
   );
 };
-

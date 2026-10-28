@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { FormEvent } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Edit3, X } from 'lucide-react';
+import { ArrowLeft, Edit3, X, ShieldAlert } from 'lucide-react';
 import type { Project } from '../../data/projectsData';
 import { projectService } from '../../services/projectService';
 import { ProjectOverview } from '../../components/projects/ProjectOverview';
@@ -9,11 +9,14 @@ import { ProjectProgress } from '../../components/projects/ProjectProgress';
 import { ProjectMembers } from '../../components/projects/ProjectMembers';
 import { RecentProjectTasks } from '../../components/projects/RecentProjectTasks';
 import { FormInput } from '../../components/common/FormInput';
+import { useAuthStore } from '../../store/authStore';
 
 export const ProjectDetails = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
+  const { user } = useAuthStore();
   const [project, setProject] = useState<Project | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [formData, setFormData] = useState({ name: '', description: '', startDate: '', dueDate: '' });
 
@@ -21,18 +24,27 @@ export const ProjectDetails = () => {
     let isMounted = true;
     async function loadProject() {
       if (!projectId) return;
-      const foundProject = await projectService.getProjectById(projectId);
-      if (isMounted) {
-        if (foundProject) {
-          setProject(foundProject);
-          setFormData({
-            name: foundProject.name,
-            description: foundProject.description,
-            startDate: foundProject.startDate,
-            dueDate: foundProject.dueDate
-          });
-        } else {
+      try {
+        const foundProject = await projectService.getProjectById(projectId);
+        if (isMounted) {
+          if (foundProject) {
+            setProject(foundProject);
+            setFormData({
+              name: foundProject.name,
+              description: foundProject.description,
+              startDate: foundProject.startDate,
+              dueDate: foundProject.dueDate
+            });
+            setError(null);
+          } else {
+            setProject(null);
+            setError('Project not found');
+          }
+        }
+      } catch (err) {
+        if (isMounted) {
           setProject(null);
+          setError(err instanceof Error ? err.message : 'Error loading project');
         }
       }
     }
@@ -61,12 +73,23 @@ export const ProjectDetails = () => {
   };
 
   if (project === null) {
+    const isAccessDenied = error?.toLowerCase().includes('access denied');
     return (
       <div className="flex flex-col items-center justify-center py-20 space-y-3 text-center">
-        <h2 className="text-lg font-semibold text-text-primary">Project not found</h2>
+        {isAccessDenied ? (
+          <div className="w-12 h-12 rounded-full bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-600 mb-1">
+            <ShieldAlert size={24} />
+          </div>
+        ) : null}
+        <h2 className="text-lg font-semibold text-text-primary">
+          {isAccessDenied ? 'Access Denied' : 'Project not found'}
+        </h2>
+        <p className="text-xs text-text-muted max-w-sm">
+          {error || 'The requested project could not be found or you do not have permission to view it.'}
+        </p>
         <button 
           onClick={() => navigate('/projects')}
-          className="px-3 py-1.5 bg-primary text-white text-xs font-medium rounded-md hover:bg-primary/90"
+          className="px-3 py-1.5 bg-primary text-white text-xs font-medium rounded-md hover:bg-primary/90 mt-2"
         >
           Back to Projects
         </button>
@@ -103,13 +126,15 @@ export const ProjectDetails = () => {
           </p>
         </div>
 
-        <button 
-          onClick={() => setIsEditModalOpen(true)}
-          className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-neutral-50 text-text-primary font-medium text-xs rounded-md hover:bg-neutral-100 transition-colors border border-border flex-shrink-0"
-        >
-          <Edit3 size={13} />
-          Edit Project
-        </button>
+        {Boolean(user?.role === 'ADMIN' || user?.role === 'PROJECT_MANAGER' || (project && (project.owner === user?.name || project.owner === user?.email))) && (
+          <button 
+            onClick={() => setIsEditModalOpen(true)}
+            className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-neutral-50 text-text-primary font-medium text-xs rounded-md hover:bg-neutral-100 transition-colors border border-border flex-shrink-0"
+          >
+            <Edit3 size={13} />
+            Edit Project
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

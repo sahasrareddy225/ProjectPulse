@@ -1,8 +1,10 @@
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, FolderKanban, CheckSquare,
-  GitMerge, BarChart2, Sparkles, Settings, ChevronDown
+  GitMerge, BarChart2, Sparkles, Settings
 } from 'lucide-react';
+
+import { useAuthStore } from '../../store/authStore';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -25,8 +27,14 @@ const link = (isActive: boolean) =>
       : 'text-text-secondary hover:text-text-primary hover:bg-border/40'
   }`;
 
-export const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => (
-  <>
+export const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
+  const { user } = useAuthStore();
+  const initials = user?.name
+    ? user.name.split(' ').map(n => n[0]).filter(Boolean).join('').slice(0, 2).toUpperCase()
+    : 'U';
+
+  return (
+    <>
     {/* Mobile overlay */}
     {isOpen && (
       <div
@@ -85,17 +93,21 @@ export const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => (
 
       {/* User row */}
       <div className="px-2 py-3 border-t border-border flex-shrink-0">
-        <button className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md hover:bg-border/40 transition-colors text-left">
+        <div className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md bg-surface-raised/40 border border-border/50 text-left">
           <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-            <span className="text-white text-[11px] font-semibold">JD</span>
+            <span className="text-white text-[11px] font-semibold">{initials}</span>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[13px] font-semibold text-text-primary truncate leading-tight">John Doe</p>
-            <p className="text-[11px] text-text-muted truncate">Project Manager</p>
+            <p className="text-[13px] font-semibold text-text-primary truncate leading-tight">
+              {user?.name || 'Workspace User'}
+            </p>
+            <p className="text-[11px] text-text-muted truncate capitalize">
+              {user?.role ? user.role.toLowerCase().replace('_', ' ') : 'Member'}
+            </p>
           </div>
-          <ChevronDown size={13} className="text-text-muted flex-shrink-0" />
-        </button>
+        </div>
       </div>
     </aside>
   </>
 );
+};

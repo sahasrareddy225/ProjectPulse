@@ -9,6 +9,7 @@ export type NotificationType =
   | 'TASK_COMPLETED'
   | 'PROJECT_STATUS_CHANGED'
   | 'PROJECT_HEALTH_CHANGED'
+  | 'PROJECT_CREATED'
   | 'DEPENDENCY_BLOCKED';
 
 export interface Notification {
